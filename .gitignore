@@ -97,3 +97,4 @@ build-aux/
 /perf.data
 perf.data
 perf.data.old
+*~
