@@ -113,7 +113,7 @@ accumulate_text_message (MuMsg *msg, MuMsgPart *part, GString **gstrp)
 	/* put sender, recipients and subject in the string, so they
 	 * can be indexed as well */
 	mimemsg = GMIME_MESSAGE (part->data);
-	str = g_mime_message_get_sender (mimemsg);
+	str = g_mime_messaget_get_from (mimemsg);
 	g_string_append_printf
 		(*gstrp, "%s%s", str ? str : "", str ? "\n" : "");
 	str = g_mime_message_get_subject (mimemsg);
@@ -225,7 +225,7 @@ get_part_size (GMimePart *part)
 	GMimeDataWrapper *wrapper;
 	GMimeStream *stream;
 
-	wrapper = g_mime_part_get_content_object (part);
+	wrapper = g_mime_part_get_content (part);
 	if (!GMIME_IS_DATA_WRAPPER(wrapper))
 		return -1;
 
@@ -665,7 +665,7 @@ write_part_to_fd (GMimePart *part, int fd, GError **err)
 	}
 	g_mime_stream_fs_set_owner (GMIME_STREAM_FS(stream), FALSE);
 
-	wrapper = g_mime_part_get_content_object (part);
+	wrapper = g_mime_part_get_content (part);
 	if (!GMIME_IS_DATA_WRAPPER(wrapper)) {
 		g_set_error (err, MU_ERROR_DOMAIN, MU_ERROR_GMIME,
 			     "failed to create wrapper");

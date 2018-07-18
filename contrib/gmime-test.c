@@ -36,7 +36,7 @@ get_recip (GMimeMessage *msg, GMimeRecipientType rtype)
 	char *recep;
 	InternetAddressList *receps;
 
-	receps = g_mime_message_get_recipients (msg, rtype);
+	receps = g_mime_message_get_addresses (msg, rtype);
 	recep = (char*)internet_address_list_to_string (receps, FALSE);
 
 	if (!recep || !*recep) {
@@ -111,7 +111,7 @@ print_body (GMimeMessage *msg)
 	if (!GMIME_IS_PART(body))
 		return;
 
-	wrapper = g_mime_part_get_content_object (GMIME_PART(body));
+	wrapper = g_mime_part_get_content (GMIME_PART(body));
 	if (!GMIME_IS_DATA_WRAPPER(wrapper))
 		return;
 
@@ -142,17 +142,17 @@ test_message (GMimeMessage *msg)
 	gchar		*val;
 	const gchar	*str;
 
-	g_print ("From   : %s\n", g_mime_message_get_sender (msg));
+	g_print ("From   : %s\n", g_mime_messaget_get_from (msg));
 
-	val = get_recip (msg, GMIME_RECIPIENT_TYPE_TO);
+	val = get_recip (msg, GMIME_ADDRESS_TYPE_TO);
 	g_print ("To     : %s\n", val ? val : "<none>" );
 	g_free (val);
 
-	val = get_recip (msg, GMIME_RECIPIENT_TYPE_CC);
+	val = get_recip (msg, GMIME_ADDRESS_TYPE_CC);
 	g_print ("Cc     : %s\n", val ? val : "<none>" );
 	g_free (val);
 
-	val = get_recip (msg, GMIME_RECIPIENT_TYPE_BCC);
+	val = get_recip (msg, GMIME_ADDRESS_TYPE_BCC);
 	g_print ("Bcc    : %s\n", val ? val : "<none>" );
 	g_free (val);
 

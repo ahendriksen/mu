@@ -176,7 +176,7 @@ get_recipient (MuMsgFile *self, GMimeRecipientType rtype)
 	char			*recip;
 	InternetAddressList	*recips;
 
-	recips = g_mime_message_get_recipients (self->_mime_msg, rtype);
+	recips = g_mime_message_get_addresses (self->_mime_msg, rtype);
 
 	/* FALSE --> don't encode */
 	recip = (char*)internet_address_list_to_string (recips, FALSE);
@@ -488,7 +488,7 @@ mu_msg_mime_part_to_string (GMimePart *part, gboolean *err)
 	*err = TRUE; /* guilty until proven innocent */
 	g_return_val_if_fail (GMIME_IS_PART(part), NULL);
 
-	wrapper = g_mime_part_get_content_object (part);
+	wrapper = g_mime_part_get_content (part);
 	if (!wrapper) {
 		/* this happens with invalid mails */
 		g_debug ("failed to create data wrapper");
@@ -642,9 +642,9 @@ G_GNUC_CONST static GMimeRecipientType
 recipient_type (MuMsgFieldId mfid)
 {
 	switch (mfid) {
-	case MU_MSG_FIELD_ID_BCC: return GMIME_RECIPIENT_TYPE_BCC;
-	case MU_MSG_FIELD_ID_CC : return GMIME_RECIPIENT_TYPE_CC;
-	case MU_MSG_FIELD_ID_TO : return GMIME_RECIPIENT_TYPE_TO;
+	case MU_MSG_FIELD_ID_BCC: return GMIME_ADDRESS_TYPE_BCC;
+	case MU_MSG_FIELD_ID_CC : return GMIME_ADDRESS_TYPE_CC;
+	case MU_MSG_FIELD_ID_TO : return GMIME_ADDRESS_TYPE_TO;
 	default: g_return_val_if_reached (-1);
 	}
 }
@@ -684,7 +684,7 @@ mu_msg_file_get_str_field (MuMsgFile *self, MuMsgFieldId mfid,
 
 	case MU_MSG_FIELD_ID_FROM:
 		return (char*)cleanup_maybe
-			(g_mime_message_get_sender (self->_mime_msg), do_free);
+			(g_mime_messaget_get_from (self->_mime_msg), do_free);
 
 	case MU_MSG_FIELD_ID_PATH: return self->_path;
 

@@ -250,12 +250,12 @@ get_cert_details (GMimeCertificate *cert)
 		(g_mime_certificate_get_pubkey_algo (cert));
 
 	switch (g_mime_certificate_get_trust (cert)) {
-	case GMIME_CERTIFICATE_TRUST_NONE:      trust = "none"; break;
-	case GMIME_CERTIFICATE_TRUST_NEVER:     trust = "never"; break;
-	case GMIME_CERTIFICATE_TRUST_UNDEFINED: trust = "undefined"; break;
-	case GMIME_CERTIFICATE_TRUST_MARGINAL:  trust = "marginal"; break;
-	case GMIME_CERTIFICATE_TRUST_FULLY:     trust = "full"; break;
-	case GMIME_CERTIFICATE_TRUST_ULTIMATE:  trust = "ultimate"; break;
+	case GMIME_TRUST_NONE:      trust = "none"; break;
+	case GMIME_TRUST_NEVER:     trust = "never"; break;
+	case GMIME_TRUST_UNDEFINED: trust = "undefined"; break;
+	case GMIME_TRUST_MARGINAL:  trust = "marginal"; break;
+	case GMIME_TRUST_FULL:     trust = "full"; break;
+	case GMIME_TRUST_ULTIMATE:  trust = "ultimate"; break;
 	default:
 		g_return_val_if_reached (NULL);
 	}
