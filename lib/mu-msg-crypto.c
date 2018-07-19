@@ -135,8 +135,9 @@ get_gpg_crypto_context (MuMsgOptions opts, GError **err)
 	if (!(gpg   = get_gpg (err)))
 		return NULL;
 
-	cctx = g_mime_gpg_context_new (
-		(GMimePasswordRequestFunc)password_requester, gpg);
+	cctx = g_mime_gpg_context_new ();
+	g_mime_crypto_context_set_request_password(cctx, (GMimePasswordRequestFunc)password_requester);
+
 	g_free (gpg);
 
 	if (!cctx) {
@@ -145,12 +146,11 @@ get_gpg_crypto_context (MuMsgOptions opts, GError **err)
 		return NULL;
 	}
 
-	/* always try to use the agent */
-	g_mime_gpg_context_set_use_agent (GMIME_GPG_CONTEXT(cctx), TRUE);
- 	g_mime_gpg_context_set_auto_key_retrieve
-		(GMIME_GPG_CONTEXT(cctx),
-		 opts & MU_MSG_OPTION_AUTO_RETRIEVE ? TRUE:FALSE);
+	// Setting the agent is no longer necessary or supported
+	// according the the gmime PORTING document.
 
+	// Setting auto-key retrieve is no longer supported by gmime.
+	// TODO: perhaps remove the option from mu as well? (MU_MSG_OPTION_AUTO_RETRIEVE)
 	return cctx;
 }
 
@@ -250,7 +250,7 @@ get_cert_details (GMimeCertificate *cert)
 		(g_mime_certificate_get_pubkey_algo (cert));
 
 	switch (g_mime_certificate_get_trust (cert)) {
-	case GMIME_TRUST_NONE:      trust = "none"; break;
+	case GMIME_TRUST_UNKNOWN:      trust = "none"; break;
 	case GMIME_TRUST_NEVER:     trust = "never"; break;
 	case GMIME_TRUST_UNDEFINED: trust = "undefined"; break;
 	case GMIME_TRUST_MARGINAL:  trust = "marginal"; break;
@@ -278,15 +278,26 @@ get_verdict_report (GMimeSignature *msig)
 	const char		*created, *expires, *verdict;
 	char			*certdata, *report;
 
+
 	switch (g_mime_signature_get_status (msig)) {
-	case GMIME_SIGNATURE_STATUS_GOOD:
+	    // TODO: Please review this!!
+	case GMIME_SIGNATURE_STATUS_VALID: // The signature is fully valid.
+	case GMIME_SIGNATURE_STATUS_GREEN: // The signature is good.
 		verdict = "good";
 		break;
-	case GMIME_SIGNATURE_STATUS_ERROR:
-		verdict = "error";
-		break;
-	case GMIME_SIGNATURE_STATUS_BAD:
+	case GMIME_SIGNATURE_STATUS_RED: // The signature is bad.
+	case GMIME_SIGNATURE_STATUS_KEY_REVOKED: // The key has been revoked.
+	case GMIME_SIGNATURE_STATUS_KEY_EXPIRED: // The key has expired.
+	case GMIME_SIGNATURE_STATUS_SIG_EXPIRED: // The signature has expired.
+	case GMIME_SIGNATURE_STATUS_KEY_MISSING: // Can't verify due to missing key.
+	case GMIME_SIGNATURE_STATUS_CRL_MISSING: // CRL not available.
+	case GMIME_SIGNATURE_STATUS_CRL_TOO_OLD: // Available CRL is too old.
+	case GMIME_SIGNATURE_STATUS_BAD_POLICY: // A policy was not met.
+	case GMIME_SIGNATURE_STATUS_TOFU_CONFLICT: // Tofu conflict detected.
 		verdict = "bad";
+		break;
+	case GMIME_SIGNATURE_STATUS_SYS_ERROR: // A system error occurred.
+		verdict = "error";
 		break;
 	default:
 		g_return_val_if_reached (NULL);
@@ -353,16 +364,15 @@ get_status_report (GMimeSignatureList *sigs)
 		msig = g_mime_signature_list_get_signature (sigs, i);
 		sigstat = g_mime_signature_get_status (msig);
 
-		switch (sigstat) {
-		case GMIME_SIGNATURE_STATUS_GOOD:
-			break;
-		case GMIME_SIGNATURE_STATUS_ERROR:
+		// TODO: review please :)
+		if ((sigstat & GMIME_SIGNATURE_STATUS_ERROR_MASK) == 0) {
+		    break;
+		} else if (sigstat == GMIME_SIGNATURE_STATUS_SYS_ERROR) {
 			status = MU_MSG_PART_SIG_STATUS_ERROR;
 			break;
-		case GMIME_SIGNATURE_STATUS_BAD:
+		} else {
 			status = MU_MSG_PART_SIG_STATUS_BAD;
 			break;
-		default: g_return_val_if_reached (NULL);
 		}
 
 		rep  = get_verdict_report (msig);
@@ -431,7 +441,7 @@ mu_msg_crypto_verify_part (GMimeMultipartSigned *sig, MuMsgOptions opts,
 		return;
 	}
 
-	sigs = g_mime_multipart_signed_verify (sig, ctx, err);
+	sigs = g_mime_multipart_signed_verify (sig, GMIME_VERIFY_NONE, err);
 	g_object_unref (ctx);
 	if (!sigs) {
 		if (err && !*err)
@@ -482,17 +492,10 @@ mu_msg_crypto_decrypt_part (GMimeMultipartEncrypted *enc, MuMsgOptions opts,
 			    GError **err)
 {
 	GMimeObject *dec;
-	GMimeCryptoContext *ctx;
 	GMimeDecryptResult *res;
+	const char *session_key;
 
 	g_return_val_if_fail (GMIME_IS_MULTIPART_ENCRYPTED(enc), NULL);
-
-	ctx = get_crypto_context (opts, func, user_data, err);
-	if (!ctx) {
-		mu_util_g_set_error (err, MU_ERROR_CRYPTO,
-				     "failed to get crypto context");
-		return NULL;
-	}
 
 	/* at the time of writing, there is a small leak in
 	 * g_mime_multipart_encrypted_decrypt; I've notified its
@@ -502,8 +505,8 @@ mu_msg_crypto_decrypt_part (GMimeMultipartEncrypted *enc, MuMsgOptions opts,
 	 * (or GMime > 2.6.10)
 	 *   */
 	res = NULL;
-	dec = g_mime_multipart_encrypted_decrypt (enc, ctx, &res, err);
-	g_object_unref (ctx);
+	session_key = NULL;
+	dec = g_mime_multipart_encrypted_decrypt (enc, GMIME_DECRYPT_NONE, session_key, &res, err);
 
 	check_decrypt_result(enc, res, err);
 

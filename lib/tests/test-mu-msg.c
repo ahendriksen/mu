@@ -61,7 +61,9 @@ get_msg (const char *path)
 static gboolean
 check_contact_01 (MuMsgContact *contact, int *idx)
 {
+	// TODO: fix test (it is failing right now)
 	switch (*idx) {
+
 	case 0:
 		g_assert_cmpstr (mu_msg_contact_name (contact),
 				 ==, "Mickey Mouse");
@@ -108,6 +110,7 @@ test_mu_msg_01 (void)
 	g_assert_cmpuint (mu_msg_get_date(msg),
 			  ==, 1217530645);
 
+	// TODO: fix test (it is failing right now)
 	i = 0;
 	mu_msg_contact_foreach (msg, (MuMsgContactForeachFunc)check_contact_01,
 				&i);

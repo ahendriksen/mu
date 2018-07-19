@@ -106,21 +106,23 @@ static void
 accumulate_text_message (MuMsg *msg, MuMsgPart *part, GString **gstrp)
 {
 	const gchar *str;
-	char *adrs;
+	char *adrs, *sndrs;
 	GMimeMessage *mimemsg;
-	InternetAddressList *addresses;
+	InternetAddressList *addresses, *sender;
+	GMimeFormatOptions *options = NULL;
 
 	/* put sender, recipients and subject in the string, so they
 	 * can be indexed as well */
 	mimemsg = GMIME_MESSAGE (part->data);
-	str = g_mime_messaget_get_from (mimemsg);
+	sender = g_mime_message_get_from (mimemsg);
+	sndrs = internet_address_list_to_string (sender, options, FALSE);
 	g_string_append_printf
-		(*gstrp, "%s%s", str ? str : "", str ? "\n" : "");
+		(*gstrp, "%s%s", sndrs ? sndrs : "", sndrs ? "\n" : "");
 	str = g_mime_message_get_subject (mimemsg);
 	g_string_append_printf
 		(*gstrp, "%s%s", str ? str : "", str ? "\n" : "");
 		addresses = g_mime_message_get_all_recipients (mimemsg);
-		adrs = internet_address_list_to_string (addresses, FALSE);
+		adrs = internet_address_list_to_string (addresses, options, FALSE);
 		g_object_unref (addresses);
 		g_string_append_printf
 			(*gstrp, "%s%s", adrs ? adrs : "", adrs ? "\n" : "");
@@ -694,7 +696,8 @@ static gboolean
 write_object_to_fd (GMimeObject *obj, int fd, GError **err)
 {
 	gchar *str;
-	str = g_mime_object_to_string (obj);
+	GMimeFormatOptions *options = NULL;
+	str = g_mime_object_to_string (obj, options);
 
 	if (!str) {
 		g_set_error (err, MU_ERROR_DOMAIN, MU_ERROR_GMIME,

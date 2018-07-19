@@ -47,13 +47,7 @@ static void
 gmime_init (void)
 {
 	g_return_if_fail (!_gmime_initialized);
-
-#ifdef GMIME_ENABLE_RFC2047_WORKAROUNDS
-	g_mime_init(GMIME_ENABLE_RFC2047_WORKAROUNDS);
-#else
-	g_mime_init(0);
-#endif /* GMIME_ENABLE_RFC2047_WORKAROUNDS */
-
+	g_mime_init();
 	_gmime_initialized = TRUE;
 }
 
@@ -378,6 +372,7 @@ mu_msg_get_mailing_list (MuMsg *self)
 {
 	const char	*ml;
 	char		*decml;
+	GMimeParserOptions *options;
 
 	g_return_val_if_fail (self, NULL);
 
@@ -385,7 +380,8 @@ mu_msg_get_mailing_list (MuMsg *self)
 	if (!ml)
 		return NULL;
 
-	decml = g_mime_utils_header_decode_text (ml);
+	options = NULL;
+	decml = g_mime_utils_header_decode_text (options, ml);
 	if (!decml)
 		return NULL;
 
@@ -566,13 +562,18 @@ get_content_type_parameters (MuMsg *self, MuMsgOptions opts, gboolean want_html)
 
 	if (cdata.ctype) {
 
-		GSList			*paramlist;
-		const GMimeParam	*param;
+		GSList		*paramlist;
+		GMimeParamList	*params;
+		GMimeParam      *param;
+		int              num_params;
 
 		paramlist = NULL;
-		param	  = g_mime_content_type_get_parameters (cdata.ctype);
+		params	  = g_mime_content_type_get_parameters (cdata.ctype);
 
-		for (; param; param = param->next) {
+		num_params = g_mime_param_list_length (params);
+
+		for (int i = 0; i < num_params; i++) {
+			param = g_mime_param_list_get_parameter_at (params, i);
 			paramlist = g_slist_prepend (paramlist,
 						     g_strdup (param->name));
 
@@ -712,11 +713,12 @@ addresses_foreach (const char* addrs, MuMsgContactType ctype,
 		   MuMsgContactForeachFunc func, gpointer user_data)
 {
 	InternetAddressList *addrlist;
+	GMimeParserOptions *options = NULL;
 
 	if (!addrs)
 		return;
 
-	addrlist = internet_address_list_parse (addrs);
+	addrlist = internet_address_list_parse (options, addrs);
 	if (addrlist) {
 		address_list_foreach (addrlist, ctype, func, user_data);
 		g_object_unref (addrlist);
@@ -730,23 +732,17 @@ msg_contact_foreach_file (MuMsg *msg, MuMsgContactForeachFunc func,
 {
 	int i;
 	struct {
-		GMimeRecipientType     _gmime_type;
+		GMimeAddressType       _gmime_type;
 		MuMsgContactType       _type;
 	} ctypes[] = {
 		{GMIME_ADDRESS_TYPE_TO,  MU_MSG_CONTACT_TYPE_TO},
 		{GMIME_ADDRESS_TYPE_CC,  MU_MSG_CONTACT_TYPE_CC},
 		{GMIME_ADDRESS_TYPE_BCC, MU_MSG_CONTACT_TYPE_BCC},
+		{GMIME_ADDRESS_TYPE_FROM, MU_MSG_CONTACT_TYPE_FROM},
+		{GMIME_ADDRESS_TYPE_REPLY_TO, MU_MSG_CONTACT_TYPE_REPLY_TO}
 	};
 
-	/* sender */
-	addresses_foreach (g_mime_messaget_get_from (msg->_file->_mime_msg),
-			   MU_MSG_CONTACT_TYPE_FROM, func, user_data);
-
-	/* reply_to */
-	addresses_foreach (g_mime_message_get_reply_to (msg->_file->_mime_msg),
-			   MU_MSG_CONTACT_TYPE_REPLY_TO, func, user_data);
-
-	/* get to, cc, bcc */
+	/* get to, cc, bcc, sender */
 	for (i = 0; i != G_N_ELEMENTS(ctypes); ++i) {
 		InternetAddressList *addrlist;
 		addrlist = g_mime_message_get_addresses (msg->_file->_mime_msg,
